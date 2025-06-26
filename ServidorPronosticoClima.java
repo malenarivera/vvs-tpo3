@@ -3,45 +3,48 @@ package mutacionalVvs;
 import java.io.*;
 import java.net.*;
 import java.util.Random;
+import java.util.logging.*;
 
-public class ServidorPronosticoClima {
-    public static void main(String[] args) throws IOException {
-        ServerSocket serverSocket = null;
+class ServidorClimaHilo extends Thread {
+    private Socket socket;
+    private int idSesion;
+    private PrintWriter out;
+    private BufferedReader in;
+
+    public ServidorClimaHilo(Socket socket, int id) {
+        this.socket = socket;
+        this.idSesion = id;
         try {
-            serverSocket = new ServerSocket(20001);
+            out = new PrintWriter(socket.getOutputStream(), true);
+            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         } catch (IOException e) {
-            System.err.println("No se puede escuchar en puerto: 20001.");
-            System.exit(1);
+            Logger.getLogger(ServidorClimaHilo.class.getName()).log(Level.SEVERE, null, e);
         }
-        System.out.println("Servidor en espera de conexión...");
+    }
 
-        Socket clientSocket = null;
+    @Override
+    public void run() {
         try {
-            clientSocket = serverSocket.accept();
-            System.out.println("Cliente conectado.");
-        } catch (IOException e) {
-            System.err.println("Falla conexión");
-            System.exit(1);
-        }
-
-        PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-        BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-
-        String inputLine;
-        while ((inputLine = in.readLine()) != null) {
-            if (inputLine.equalsIgnoreCase("salir")) {
-                out.println("Conexión cerrada.");
-                break;
+            System.out.println("Cliente " + idSesion + " conectado.");
+            String inputLine;
+            while ((inputLine = in.readLine()) != null) {
+                if (inputLine.equalsIgnoreCase("salir")) {
+                    out.println("Conexión cerrada.");
+                    break;
+                }
+                out.println(getClimaNeuquen());
             }
-
-            String respuesta = getClimaNeuquen();
-            out.println(respuesta);
+        } catch (IOException e) {
+            Logger.getLogger(ServidorClimaHilo.class.getName()).log(Level.SEVERE, null, e);
+        } finally {
+            try {
+                in.close();
+                out.close();
+                socket.close();
+            } catch (IOException e) {
+                Logger.getLogger(ServidorClimaHilo.class.getName()).log(Level.SEVERE, null, e);
+            }
         }
-
-        out.close();
-        in.close();
-        clientSocket.close();
-        serverSocket.close();
     }
 
     public static String getClimaNeuquen() {
@@ -52,9 +55,24 @@ public class ServidorPronosticoClima {
             "Está despejado",
             "ALERTA: Vientos fuertes",
             "Easter egg",
-            "Con probabilidad de granizo",
+            "Con probabilidad de granizo"
         };
-
         return pronosticos[rand.nextInt(pronosticos.length)];
+    }
+}
+
+public class ServidorPronosticoClima {
+    public static void main(String[] args) {
+        try (ServerSocket serverSocket = new ServerSocket(20001)) {
+            System.out.println("Servidor en espera de conexión...");
+            int idSesion = 0;
+            while (true) {
+                Socket clientSocket = serverSocket.accept();
+                new ServidorClimaHilo(clientSocket, idSesion++).start();
+            }
+        } catch (IOException e) {
+            System.err.println("No se puede escuchar en puerto: 20001.");
+            e.printStackTrace();
+        }
     }
 }

@@ -2,8 +2,20 @@ package mutacionalVvs;
 
 import java.io.*;
 import java.net.*;
-public class Cliente {
-    public static void main(String[] args) throws IOException {
+import java.util.Random;
+import java.util.ArrayList;
+
+class Persona extends Thread {
+    private int id;
+    public Persona(int id) {
+        this.id = id;
+    }
+
+    public void run(){
+        //Crea un random que sea h o c
+        Random random = new Random();
+        String valor = random.nextBoolean() ? "h" : "c"; 
+
         Socket echoSocket = null;
         PrintWriter out = null;
         BufferedReader in = null;
@@ -19,16 +31,33 @@ public class Cliente {
             System.exit(1);
         }
         BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
-        String userInput;
-
-        while ((userInput = stdIn.readLine()) != null) { 
-                    //mientras el cliente escriba algo
-            out.println(userInput); //lo envia al server
-            System.out.println("echo: " + in.readLine()); //cuando vuelve del server lo imprime con el prefijo "echo"
+        
+        try{
+            System.out.println("Soy el hilo "+Thread.currentThread().getName()+" y envie " +valor);
+            //mientras el cliente escriba algo
+            out.println(valor); //lo envia al server
+            System.out.println("Hilo "+Thread.currentThread().getName()+" echo: " + in.readLine()); //cuando vuelve del server lo imprime con el prefijo "echo"
+            
+            out.close();
+            in.close();
+            stdIn.close();
+            echoSocket.close();
+        }catch (IOException e) {
+          System.err.println("Error");
+            System.exit(1);  
         }
-        out.close();
-        in.close();
-        stdIn.close();
-        echoSocket.close();
+
+    }
+}
+
+public class Cliente {
+    public static void main(String[] args) {
+        ArrayList<Thread> clientes = new ArrayList<Thread>();
+        for (int i = 0; i < 5; i++) {
+            clientes.add(new Persona(i));
+        }
+        for (Thread thread : clientes) {
+            thread.start();
+        }
     }
 }
